@@ -28,3 +28,6 @@
 # Avoid patch remnants
 \.orig$
 \.rej$
+
+# MYMETAAAAaaa
+MYMETA.*

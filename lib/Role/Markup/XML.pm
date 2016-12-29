@@ -199,7 +199,163 @@ sub _ELEM {
 
 =head2 _XML $SPEC [, $PARENT, $DOC, $ARGS | @ARGS ] | %PARAMS
 
-Generate 
+Generate an XML tree according to the L</specification
+format>. Returns the I<last node generated> by the process. Parameters
+are as follows:
+
+=over 4
+
+=item spec
+
+The node specification. Strictly speaking this is optional, but there
+isn't much of a point of running this method if there is no spec to
+run it over.
+
+=item doc
+
+The L<XML::LibXML::Document> object intended to own the
+contents. Optional, however it is often desirable to supply a document
+object along with the initial call to this method.
+
+=item parent
+
+The L<XML::LibXML::Element> object which is intended to be the parent
+node of the spec. Optional.
+
+=item args
+
+An C<ARRAY> reference of arguments to be passed into C<CODE>
+references embedded in the spec. Optional.
+
+=back
+
+=head3 Specification Format
+
+The building blocks of the spec are, unsurprisingly, C<HASH> and
+C<ARRAY> references. The former correspond to elements and other
+things, while the latter correspond to lists thereof. Literals are
+literals, and blessed objects will be treated like strings, so it
+helps if they have a string override. C<CODE> references may be used
+just about anywhere, and will be dereferenced recursively using the
+supplied L</args> until there is nothing left to dereference. It is up
+to you to keep these data structures free of cycles.
+
+=over 4
+
+=item Elements
+
+Special keys designate the name and content of an element spec. These
+are, unimaginitively, C<-name> and C<-content>. They work like so:
+
+    { -name => 'body', -content => 'hurr' }
+
+    # produces <body>hurr</body>
+
+Note that C<-content> can take any primitive: literal, C<HASH>,
+C<ARRAY> or C<CODE> reference, L<XML::LibXML::Node> object, etc.
+
+=item Attributes
+
+Any key is not C<-name> or C<-content> will be interpreted as an attribute.
+
+    { -name => 'body', -content => 'hurr', class => 'lolwut' }
+
+    # produces <body class="lolwut">hurr</body>
+
+When references are values of attributes, they are flattened into strings:
+
+    { -name => 'body', -content => 'hurr', class => [qw(one two three)] }
+
+    # produces <body class="one two three">hurr</body>
+
+=item Namespaces
+
+If there is a colon in either the C<-name> key value or any of the
+attribute keys, the processor will expect a namespace that corresponds
+to that prefix. These are specified exactly as one would with ordinary
+XML, with the use of an C<xmlns:foo> attribute>. (Prefix-free C<xmlns>
+attributes likewise work as expected.)
+
+    { -name => 'svg',
+      xmlns => 'http://www.w3.org/2000/svg',
+      'xmlns:xlink' => 'http://www.w3.org/1999/xlink',
+      -content => [
+          { -name => 'a', 'xlink:href' => 'http://some.host/' },
+      ],
+    }
+
+    # produces:
+    # <svg xmlns="http://www.w3.org/2000/svg"
+    #      xmlns:xlink="http://www.w3.org/1999/xlink">
+    #   <a xlink:href="http://some.host/"/>
+    # </svg>
+
+=item Other Nodes
+
+=over 4
+
+=item C<-pi>
+
+Processing instructions are designated by the special key C<-pi> and
+accept arbitrary pseudo-attributes:
+
+    { -pi => 'xml-stylesheet', type => 'text/xsl', href => '/my.xsl' }
+
+    # produces <?xml-stylesheet type="text/xsl" href="/my.xsl"?>
+
+=item C<-doctype>
+
+Document type declarations are designated by the special key
+C<-doctype> and accept values for the keys C<public> and C<system>:
+
+    { -doctype => 'html' }
+
+    # produces <!DOCTYPE html>
+
+=item C<-comment>
+
+Comments are designated by the special key C<-comment> and whatever is
+in the value of that key:
+
+    { -comment => 'hey you guyyyys' }
+
+    # produces <!-- hey you guyyyys -->
+
+=back
+
+=item Callbacks
+
+Just about any part of a markup spec can be replaced by a C<CODE>
+reference, which can return any single value, including another
+C<CODE> reference. These are called in the context of C<$self>, i.e.,
+as if they were a method of the object that does the role. The
+L</args> in the original method call form the subsequent input:
+
+    sub callback {
+        my ($self, @args) = @_;
+
+        my %node = (-name => 'section', id => $self->generate_id);
+
+        # ...do things to %node, presumably involving @args...
+
+        return \%node;
+    }
+
+    sub make_xml {
+        my $self = shift;
+
+        my $doc = $self->_DOC;
+        $self->_XML(
+            doc  => $doc,
+            spec => { -name => 'p', -content => \&callback },
+        );
+
+       return $doc;
+    }
+
+C<CODE> references can appear in attribute values as well.
+
+=back
 
 =cut
 
@@ -925,9 +1081,23 @@ L<http://search.cpan.org/dist/Role-Markup-XML/>
 
 =back
 
+=head1 SEE ALSO
 
-=head1 ACKNOWLEDGEMENTS
+=over 4
 
+=item
+
+L<XML::LibXML::LazyBuilder>
+
+=item
+
+L<XML::LibXML>
+
+=item
+
+L<Moo>
+
+=back
 
 =head1 LICENSE AND COPYRIGHT
 

@@ -1,5 +1,5 @@
 Revision history for Role-Markup-XML
 
-0.01    Date/time
-        First version, released on an unsuspecting world.
+0.01    Wed, 28 Dec 2016 21:00:38 -0800
+        Pulled standalone module out of app and documented it.
 
