@@ -30,11 +30,11 @@ Role::Markup::XML - Moo(se) role for bolt-on lazy XML markup
 
 =head1 VERSION
 
-Version 0.01
+Version 0.02
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 =head1 SYNOPSIS
 
@@ -563,9 +563,10 @@ sub _XML {
 
 =head2 _XHTML | %PARAMS
 
-Generate an XHTML+RDFa stub. Return the body and the document when
-called in list context, otherwise return just the document in scalar
-context.
+Generate an XHTML+RDFa stub. Return the C<E<lt>bodyE<gt>> and the
+document when called in list context, otherwise return just the
+C<E<lt>bodyE<gt>> in scalar context (which can be used in subsequent
+calls to L</_XML>).
 
   my ($body, $doc) = $self->_XHTML(%p);
 
