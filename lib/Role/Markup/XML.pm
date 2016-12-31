@@ -30,11 +30,11 @@ Role::Markup::XML - Moo(se) role for bolt-on lazy XML markup
 
 =head1 VERSION
 
-Version 0.02
+Version 0.03
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 =head1 SYNOPSIS
 
@@ -60,7 +60,7 @@ our $VERSION = '0.02';
         # create a document object to hang on to
         my $doc  = $self->_DOC;
 
-        # returns the last node generated, which we can chain
+        # returns the last node generated, which is <my:bar/>
         my $stub = $self->_XML(
             doc  => $doc,
             spec => \%spec,
@@ -78,7 +78,7 @@ our $VERSION = '0.02';
             args   => $self->cb_args, # some useful state data
         );
 
-        # the rest of the ops are ordinary XML::LibXML
+        # the rest of the ops come from XML::LibXML
         return $doc->toString(1);
     }
 
@@ -138,9 +138,10 @@ once, and then immediately throw them away. It likewise costs in
 legibility to have to write a bunch of imperative code to do what is
 essentially data declaration. It also costs in sanity to have to write
 function-generating-function-generating functions just to get the mess
-under control. The interim product is impossible to inspect or
-manipulate. This ostensibly time-saving pattern quickly hits a wall in
-both development, and at runtime.
+under control. What you get for your trouble is an interim product
+that is impossible to inspect or manipulate. This ostensibly
+time-saving pattern quickly hits a wall in both development, and at
+runtime.
 
 The answer? Use (in this case) Perl's elementary data structures to
 convey the requisite information: data structures which can be built
@@ -157,7 +158,7 @@ I<your> module's interface.
 
 =head2 _DOC [$VERSION,] [$ENCODING]
 
-Generate a document node.
+Generate a document node. Shorthand for L<XML::LibXML::Document/new>.
 
 =cut
 
@@ -199,9 +200,9 @@ sub _ELEM {
 
 =head2 _XML $SPEC [, $PARENT, $DOC, $ARGS | @ARGS ] | %PARAMS
 
-Generate an XML tree according to the L</specification
-format>. Returns the I<last node generated> by the process. Parameters
-are as follows:
+Generate an XML tree according to the L<specification
+format|/Specification Format>. Returns the I<last node generated> by
+the process. Parameters are as follows:
 
 =over 4
 
@@ -215,12 +216,13 @@ run it over.
 
 The L<XML::LibXML::Document> object intended to own the
 contents. Optional, however it is often desirable to supply a document
-object along with the initial call to this method.
+object along with the initial call to this method, so as not to have
+to fish it out later.
 
 =item parent
 
-The L<XML::LibXML::Element> object which is intended to be the parent
-node of the spec. Optional.
+The L<XML::LibXML::Element> (or, redundantly, Document) object which
+is intended to be the parent node of the spec. Optional.
 
 =item args
 
@@ -233,12 +235,12 @@ references embedded in the spec. Optional.
 
 The building blocks of the spec are, unsurprisingly, C<HASH> and
 C<ARRAY> references. The former correspond to elements and other
-things, while the latter correspond to lists thereof. Literals are
-literals, and blessed objects will be treated like strings, so it
-helps if they have a string override. C<CODE> references may be used
-just about anywhere, and will be dereferenced recursively using the
-supplied L</args> until there is nothing left to dereference. It is up
-to you to keep these data structures free of cycles.
+things, while the latter correspond to lists thereof. Literals become
+text nodes, and blessed objects will be treated like strings, so it
+helps if they have a string L<overload>. C<CODE> references may be
+used just about anywhere, and will be dereferenced recursively using
+the supplied L</args> until there is nothing left to dereference. It
+is up to I<you> to keep these data structures free of cycles.
 
 =over 4
 
