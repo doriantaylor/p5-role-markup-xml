@@ -1,5 +1,8 @@
 Revision history for Role-Markup-XML
 
+0.02    Sat, 31 Dec 2016 09:23:01 -0800
+        dammit namespace::autoclean
+
 0.01    Wed, 28 Dec 2016 21:00:38 -0800
         Pulled standalone module out of app and documented it.
 

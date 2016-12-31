@@ -3,12 +3,12 @@ use strict;
 use warnings;
 use inc::Module::Install;
 
-name     'Role-Markup-XML';
+name        'Role-Markup-XML';
+abstract    'Bolt-on lazy XML generation';
 readme_from 'lib/Role/Markup/XML.pm';
-abstract 'Bolt-on lazy XML generation';
-all_from 'lib/Role/Markup/XML.pm';
-author   q{Dorian Taylor <dorian@cpan.org>};
-license  'apache';
+all_from    'lib/Role/Markup/XML.pm';
+author      q{Dorian Taylor <dorian@cpan.org>};
+license     'apache';
 
 perl_version 5.010;
 
@@ -32,10 +32,9 @@ build_requires (
 );
 
 requires (
-    #'ABC'              => 1.6,
-    #'Foo::Bar::Module' => 5.0401,
-    Moo           => 2.000001,
-    'XML::LibXML' => 2.0116,
+    Moo                    => 2.000001,
+    'namespace::autoclean' => 0.28,
+    'XML::LibXML'          => 2.0116,
 );
 
 install_as_cpan;
