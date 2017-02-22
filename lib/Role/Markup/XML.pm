@@ -14,8 +14,32 @@ use Carp         ();
 use constant XHTMLNS => 'http://www.w3.org/1999/xhtml';
 
 # XXX this is a shitty qname regex: no unicode but whatever
-use constant QNAME_RE =>
-    qr/^(?:([A-Za-z][0-9A-Za-z_-]*):)?([A-Za-z][0-9A-Za-z_-]*)$/;
+#use constant QNAME_RE =>
+#    qr/^(?:([A-Za-z][0-9A-Za-z_-]*):)?([A-Za-z][0-9A-Za-z_-]*)$/;
+
+use constant NCNAME_PAT => do {
+    my $ns = '_A-Za-z\N{U+C0}-\N{U+D6}\N{U+D8}-\N{U+F6}\N{U+F8}-\N{U+2FF}' .
+        '\N{U+370}-\N{U+37D}\N{U+37F}-\N{U+1FFF}\N{U+200C}-\N{U+200D}' .
+            '\N{U+2070}-\N{U+218F}\N{U+2C00}-\N{U+2FEF}\N{U+3001}-\N{U+D7FF}' .
+                '\N{U+F900}-\N{U+FDCF}\N{U+FDF0}-\N{U+FFFD}' .
+                    '\N{U+10000}-\N{U+EFFFF}';
+    my $nc = '0-9\N{U+B7}\N{U+300}-\N{U+36F}\N{U+203F}-\N{U+2040}-';
+    sprintf '[%s][%s%s]*', $ns, $ns, $nc;
+};
+
+use constant NCNAME_RE => do {
+    my $nc = NCNAME_PAT;
+    qr/^($nc)$/o;
+};
+
+use constant QNAME_RE => do {
+    my $nc = NCNAME_PAT;
+    qr/^(?:($nc):)?($nc)$/o;
+};
+
+#STDERR->binmode('utf8');
+#warn NCNAME_RE;
+
 
 has _ATTRS => (
     is      => 'ro',
@@ -30,11 +54,11 @@ Role::Markup::XML - Moo(se) role for bolt-on lazy XML markup
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 =cut
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 SYNOPSIS
 
@@ -501,6 +525,14 @@ sub _XML {
             # check for specified tag
             my $tag = delete $spec{'-name'};
 
+            my ($prefix, $local);
+            if (defined $tag) {
+                ($prefix, $local) = ($tag =~ QNAME_RE);
+                Carp::croak("Cannot make use of tag $tag")
+                      unless defined $local;
+            }
+            $prefix ||= '';
+
             # detect appropriate table tag
             unless ($tag ||= _table_tag($p{parent})) {
                 my $is_head = $p{parent}->nodeType == 1 &&
@@ -519,6 +551,11 @@ sub _XML {
 
             # okay generate the node
             my %ns;
+
+            if (my $nsuri = $p{parent}->lookupNamespaceURI($prefix)) {
+                $ns{$prefix} = $nsuri;
+            }
+
             for my $k (keys %spec) {
                 next unless $k =~ /^xmlns(?::(.*))/;
                 my $prefix = $1 || '';

@@ -2,7 +2,7 @@ NAME
     Role::Markup::XML - Moo(se) role for bolt-on lazy XML markup
 
 VERSION
-    Version 0.03
+    Version 0.04
 
 SYNOPSIS
         package My::MarkupEnabled;
