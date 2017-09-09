@@ -54,11 +54,11 @@ Role::Markup::XML - Moo(se) role for bolt-on lazy XML markup
 
 =head1 VERSION
 
-Version 0.04
+Version 0.05
 
 =cut
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 =head1 SYNOPSIS
 
@@ -510,7 +510,7 @@ sub _XML {
             _attach($node, $p{parent});
             return $node;
         }
-        elsif (my $dtd = $spec{'-doctype'}) {
+        elsif (my $dtd = $spec{'-doctype'} || $spec{'-dtd'}) {
             # in XML::LibXML::LazyBuilder i wrote that there is some
             # XS issue and these values have to be explicitly passed
             # in as undef.
@@ -619,7 +619,7 @@ calls to L</_XML>).
 
 =item uri
 
-The C<href> attribute of the C<<baseE<gt>> element.
+The C<href> attribute of the C<E<lt>baseE<gt>> element.
 
 =item ns
 
@@ -633,10 +633,15 @@ then the XML namespaces will I<not> be set. Conversely, if this
 parameter is defined but false, then I<only> the contents of C<ns>
 will appear in the conventional C<xmlns:foo> way.
 
+=item vocab
+
+This will specify a default C<vocab> attribute in the
+C<E<lt>htmlE<gt>> element, like L<http://www.w3.org/1999/xhtml/vocab/>.
+
 =item title
 
 This can either be a literal title string, or C<CODE> reference, or
-C<HASH> reference assumed to encompass the whole C<<titleE<gt>>
+C<HASH> reference assumed to encompass the whole C<E<lt>titleE<gt>>
 element, or an C<ARRAY> reference where the first element is the title
 and subsequent elements are predicates.
 
@@ -655,7 +660,7 @@ Predicates are grouped by C<href>, folded, and sorted alphabetically.
 
 =item
 
-C<<linkE<gt>> elements are sorted first lexically by the sorted
+C<E<lt>linkE<gt>> elements are sorted first lexically by the sorted
 C<rel>, then by sorted C<rev>, then by C<href>.
 
 =item
@@ -1028,14 +1033,27 @@ sub _isa_really {
         and Scalar::Util::blessed($obj) and $obj->isa($class);
 }
 
+sub _strip_ns {
+    my $ns = shift;
+    if (_isa_really($ns, 'URI::NamespaceMap')) {
+        return { map +($_ => $ns->namespace_uri($_)->as_string),
+                 $ns->list_prefixes };
+    }
+    elsif (_isa_really($ns, 'RDF::Trine::NamespaceMap')) {
+        return { map +($_, $ns->namespace_uri($_)->uri_value->uri_value),
+                 $ns->list_prefixes };
+    }
+    else {
+        return $ns;
+    }
+}
+
 sub _XHTML {
     my $self = shift;
     my %p = @_;
 
     # ns is empty if prefix has stuff in it
-    my $nstemp = _isa_really($p{ns}, 'URI::NamespaceMap')
-        ? { map +($_ => $p{ns}->namespace_uri($_)->as_string),
-            $p{ns}->list_prefixes } : $p{ns};
+    my $nstemp = _strip_ns($p{ns} || {});
     my %ns = map +("xmlns:$_" => $nstemp->{$_}), keys %{$nstemp || {}}
         unless $p{prefix};
 
@@ -1062,10 +1080,11 @@ sub _XHTML {
     );
 
     # prefix is empty if it is defined but false, otherwise overrides ns
-    my $pfxtemp = _isa_really($p{prefix}, 'URI::NamespaceMap')
-        ? { map +($_ => $p{prefix}->namespace_uri($_)->as_string),
-            $p{prefix}->list_prefixes } : $p{prefix};
+    my $pfxtemp = _strip_ns($p{prefix}) if $p{prefix};
     $spec[1]{prefix} = $pfxtemp ? $pfxtemp : defined $pfxtemp ? {} : $nstemp;
+
+    # add a default vocab too
+    $spec[1]{vocab} = $p{vocab} if $p{vocab};
 
     # add transform if present
     unshift @spec, { -pi => 'xml-stylesheet', type => 'text/xsl',
