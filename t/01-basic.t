@@ -13,7 +13,7 @@ package main;
 
 use Test::More;
 
-plan tests => 5;
+plan tests => 7;
 
 
 my $obj = My::Test->new;
@@ -45,12 +45,31 @@ my $title = $obj->_XML(
 
 #diag($doc->toString(1));
 
-$obj->_XML(
-    next => $title->parentNode,
+my $meta = $obj->_XML(
+    after => $title->parentNode,
     #spec => { -name => 'svg', xmlns => 'http://www.w3.org/2000/svg' },
-    spec => { -comment => 'lol' },
+    spec => [
+        { -comment => 'lol' },
+        { -name => 'base', href => 'wat'},
+        { href => 'foo' },
+        { content => 'wat' },
+    ],
 );
 
-#diag($doc->toString(1));
+is($meta->localName, 'meta', 'head elements get the right name');
 
-#diag(&Role::Markup::XML::QNAME_RE);
+# diag($doc->toString(1));
+
+# test if the namespace propagates correctly
+my $a = $obj->_XML(
+    parent => $html,
+    spec => { -name => 'body' ,
+              -content => [
+                  { -name => 'svg', xmlns => 'http://www.w3.org/2000/svg',
+                    'xmlns:xlink' => 'http://www.w3.org/1999/xlink',
+                    -content => [
+                        { -name => 'a', 'xlink:href' => 'foo/' } ] } ] },
+);
+
+is($a->getAttributeNode('xlink:href')->namespaceURI,
+   'http://www.w3.org/1999/xlink', 'xlink namespace propagates');

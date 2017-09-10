@@ -254,15 +254,18 @@ to the document.
 Suppose we're doing surgery to an existing XML document. Instead of
 supplying a L</parent>, we can supply a node in said document which we
 want to I<replace>. Note that this parameter is incompatible with
-L</parent>, is meaningless for some node types (e.g. C<-doctype>), and 
+L</parent>, is meaningless for some node types (e.g. C<-doctype>), and
+may fail in some contexts (e.g. when the node to be replaced is the
+document).
 
-=item prev, next
+=item before, after
 
 Why stop at replacing nodes? Sometimes we need to snuggle a new set of
 nodes up to one side or the other of a sibling at the same level.
-B<Will fail if the sibling node has no parent.> Optional of
-course. Once again, all these parameters, L</parent>, L</replace>,
-C<prev> and C<next>, are I<mutually conflicting>.
+B<Will fail if the sibling node has no parent.> Will also fail if you
+do things like try to add a second root element. Optional of course.
+Once again, all these parameters, L</parent>, L</replace>, C<before>
+and C<after>, are I<mutually conflicting>.
 
 =item args
 
@@ -484,17 +487,17 @@ my %ADJ = (
 
         $node;
     },
-    prev => sub {
-        my ($node, $prev) = @_;
-        my $parent = $prev->parentNode;
-        $parent->insertAfter($node, $prev);
-
-        $node;
-    },
-    next => sub {
+    before => sub {
         my ($node, $next) = @_;
         my $parent = $next->parentNode;
         $parent->insertBefore($node, $next);
+
+        $node;
+    },
+    after => sub {
+        my ($node, $prev) = @_;
+        my $parent = $prev->parentNode;
+        $parent->insertAfter($node, $prev);
 
         $node;
     },
@@ -519,6 +522,17 @@ my %ADJ = (
         $node;
     },
 );
+
+sub _ancestor_is {
+    my ($node, $local, $ns) = @_;
+    return unless $node->nodeType == 1;
+
+    return 1 if $node->localName eq $local
+        and (!defined($ns) or $node->namespaceURI eq $ns);
+
+    my $parent = $node->parentNode;
+    _ancestor_is($parent, $local, $ns) if $parent and $parent->nodeType == 1;
+}
 
 sub _XML {
     my $self = shift;
@@ -576,8 +590,10 @@ sub _XML {
         my $par = $adj ne 'parent' ?
             $p{doc}->createDocumentFragment : $p{parent};
 
+        # we add a _pseudo parent because it's the only way to
+        # propagate things like the namespace
         my @out = map {
-            $self->_XML(spec => $_,      parent => $par,
+            $self->_XML(spec => $_, parent => $par, _pseudo => $p{parent},
                         doc  => $p{doc}, args => $p{args}) } @{$p{spec}};
         if (@out) {
             $ADJ{$adj}->($par, $p{$adj}) unless $adj eq 'parent';
@@ -640,12 +656,11 @@ sub _XML {
             $prefix ||= '';
 
             # detect appropriate table tag
-            unless ($tag ||= _table_tag($p{parent})) {
-                my $is_head = $p{parent}->nodeType == 1 &&
-                    $p{parent}->localname eq 'head';
+            unless ($tag ||= _table_tag($p{_pseudo} || $p{parent})) {
+                my $is_head = _ancestor_is($p{_pseudo} || $p{parent}, 'head');
                 # detect tag
                 if (defined $spec{src}) {
-                    $tag = 'img';
+                    $tag = $is_head ? 'script' : 'img';
                 }
                 elsif (defined $spec{href}) {
                     $tag = $is_head ? 'link' : 'a';
@@ -658,7 +673,8 @@ sub _XML {
             # okay generate the node
             my %ns;
 
-            if (my $nsuri = $p{parent}->lookupNamespaceURI($prefix)) {
+            if (my $nsuri =
+                    ($p{_pseudo} || $p{parent})->lookupNamespaceURI($prefix)) {
                 $ns{$prefix} = $nsuri;
             }
 
