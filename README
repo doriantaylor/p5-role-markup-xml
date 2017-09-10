@@ -134,13 +134,16 @@ METHODS
         supplying a "parent", we can supply a node in said document which we
         want to *replace*. Note that this parameter is incompatible with
         "parent", is meaningless for some node types (e.g. "-doctype"), and
+        may fail in some contexts (e.g. when the node to be replaced is the
+        document).
 
-    prev, next
+    before, after
         Why stop at replacing nodes? Sometimes we need to snuggle a new set
         of nodes up to one side or the other of a sibling at the same level.
-        Will fail if the sibling node has no parent. Optional of course.
-        Once again, all these parameters, "parent", "replace", "prev" and
-        "next", are *mutually conflicting*.
+        Will fail if the sibling node has no parent. Will also fail if you
+        do things like try to add a second root element. Optional of course.
+        Once again, all these parameters, "parent", "replace", "before" and
+        "after", are *mutually conflicting*.
 
     args
         An "ARRAY" reference of arguments to be passed into "CODE"
