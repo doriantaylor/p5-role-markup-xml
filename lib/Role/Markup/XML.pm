@@ -54,11 +54,11 @@ Role::Markup::XML - Moo(se) role for bolt-on lazy XML markup
 
 =head1 VERSION
 
-Version 0.05
+Version 0.06
 
 =cut
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 =head1 SYNOPSIS
 
@@ -222,7 +222,7 @@ sub _ELEM {
     $elem;
 }
 
-=head2 _XML $SPEC [, $PARENT, $DOC, $ARGS | @ARGS ] | %PARAMS
+=head2 _XML $SPEC [, $PARENT, $DOC, \@ARGS | @ARGS ] | %PARAMS
 
 Generate an XML tree according to the L<specification
 format|/Specification Format>. Returns the I<last node generated> by
@@ -246,7 +246,23 @@ to fish it out later.
 =item parent
 
 The L<XML::LibXML::Element> (or, redundantly, Document) object which
-is intended to be the parent node of the spec. Optional.
+is intended to be the I<parent node> of the spec. Optional; defaults
+to the document.
+
+=item replace
+
+Suppose we're doing surgery to an existing XML document. Instead of
+supplying a L</parent>, we can supply a node in said document which we
+want to I<replace>. Note that this parameter is incompatible with
+L</parent>, is meaningless for some node types (e.g. C<-doctype>), and 
+
+=item prev, next
+
+Why stop at replacing nodes? Sometimes we need to snuggle a new set of
+nodes up to one side or the other of a sibling at the same level.
+B<Will fail if the sibling node has no parent.> Optional of
+course. Once again, all these parameters, L</parent>, L</replace>,
+C<prev> and C<next>, are I<mutually conflicting>.
 
 =item args
 
@@ -446,6 +462,64 @@ sub _attach {
     $node;
 }
 
+sub _replace {
+    my ($node, $target) = @_;
+
+    if ($node && $target) {
+        $target->replaceNode($node);
+    }
+
+    $node;
+}
+
+my %ADJ = (
+    parent => sub {
+        my ($node, $parent) = @_;
+        if ($parent->nodeType == 9 and $node->nodeType == 1) {
+            $parent->setDocumentElement($node);
+        }
+        else {
+            $parent->appendChild($node);
+        }
+
+        $node;
+    },
+    prev => sub {
+        my ($node, $prev) = @_;
+        my $parent = $prev->parentNode;
+        $parent->insertAfter($node, $prev);
+
+        $node;
+    },
+    next => sub {
+        my ($node, $next) = @_;
+        my $parent = $next->parentNode;
+        $parent->insertBefore($node, $next);
+
+        $node;
+    },
+    replace => sub {
+        my ($node, $target) = @_;
+        my $od = $target->ownerDocument;
+        if ($target->isSameNode($od->documentElement)) {
+            if ($node->nodeType == 1) {
+                $od->removeChild($target);
+                $od->setDocumentElement($node);
+            }
+            else {
+                # this may not be an element
+                $od->insertAfter($node, $target);
+                $od->removeChild($target);
+            }
+        }
+        else {
+            $target->replaceNode($node);
+        }
+
+        $node;
+    },
+);
+
 sub _XML {
     my $self = shift;
     my %p;
@@ -464,27 +538,59 @@ sub _XML {
     }
 
     $p{args} ||= [];
-    $p{doc} ||= $p{parent} && $p{parent}->ownerDocument
-        ? $p{parent}->ownerDocument : $self->_DOC;
-    $p{parent} ||= $p{doc}; # this might be problematic
+
+    my $adj;
+    for my $k (keys %ADJ) {
+        if ($p{$k}) {
+            Carp::croak('Conflicting adjacent nodes ' .
+                            join ', ', sort grep { $p{$_} } keys %ADJ) if $adj;
+            Carp::croak("$k must be an XML node")
+                  unless _isa_really($p{$k}, 'XML::LibXML::Node');
+
+            $adj = $k;
+        }
+    }
+
+    if ($adj) {
+        Carp::croak('Adjacent node must be attached to a document')
+              unless $p{$adj}->ownerDocument;
+        unless ($adj eq 'parent') {
+            Carp::croak('Replace/prev/next node must have a parent node')
+                  unless $p{parent} = $p{$adj}->parentNode;
+        }
+
+        $p{doc} ||= $p{$adj}->ownerDocument;
+    }
+    else {
+        $p{$adj = 'parent'} = $p{doc} ||= $self->_DOC;
+    }
+
+    # $p{doc} ||= $p{parent} && $p{parent}->ownerDocument
+    #     ? $p{parent}->ownerDocument : $self->_DOC;
+    # $p{parent} ||= $p{doc}; # this might be problematic
 
     my $node;
 
     my $ref = ref($p{spec}) || '';
     if ($ref eq 'ARRAY') {
+        my $par = $adj ne 'parent' ?
+            $p{doc}->createDocumentFragment : $p{parent};
+
         my @out = map {
-            $self->_XML(spec => $_,      parent => $p{parent},
+            $self->_XML(spec => $_,      parent => $par,
                         doc  => $p{doc}, args => $p{args}) } @{$p{spec}};
         if (@out) {
+            $ADJ{$adj}->($par, $p{$adj}) unless $adj eq 'parent';
+
             return wantarray ? @out : $out[-1];
         }
-        return $p{parent};
+        return $p{$adj};
     }
     elsif ($ref eq 'CODE') {
         return $self->_XML(spec   => $p{spec}->($self, @{$p{args}}),
-                              parent => $p{parent},
-                              doc    => $p{doc},
-                              args   => $p{args});
+                           $adj   => $p{$adj},
+                           doc    => $p{doc},
+                           args   => $p{args});
     }
     elsif ($ref eq 'HASH') {
         # copy the spec so we don't screw it up
@@ -492,8 +598,8 @@ sub _XML {
 
         if (my $c = $spec{'-comment'}) {
             $node = $p{doc}->createComment($self->_flatten($c, @{$p{args}}));
-            _attach($node, $p{parent});
-            return $node;
+
+            return $ADJ{$adj}->($node, $p{$adj});
         }
         if (my $target = delete $spec{'-pi'}) {
             # take -content over content
@@ -507,8 +613,8 @@ sub _XML {
                 $self->_flatten($content, @{$p{args}}) if defined $content;
 
             $node = $p{doc}->createProcessingInstruction($target, $data);
-            _attach($node, $p{parent});
-            return $node;
+
+            return $ADJ{$adj}->($node, $p{$adj});
         }
         elsif (my $dtd = $spec{'-doctype'} || $spec{'-dtd'}) {
             # in XML::LibXML::LazyBuilder i wrote that there is some
@@ -565,7 +671,7 @@ sub _XML {
                 $ns{$prefix} = $v;
             }
             $node = $self->_ELEM($tag, $p{doc}, \%ns);
-            _attach($node, $p{parent});
+            $ADJ{$adj}->($node, $p{$adj});
 
             # now do the attributes
             for my $k (sort grep { $_ =~ QNAME_RE } keys %spec) {
@@ -587,13 +693,13 @@ sub _XML {
     elsif (Scalar::Util::blessed($p{spec})
           and $p{spec}->isa('XML::LibXML::Node')) {
         $node = $p{spec}->cloneNode(1);
-        _attach($node, $p{parent});
+        $ADJ{$adj}->($node, $p{$adj});
     }
     else {
         # spec is a text node, if defined
         if (defined $p{spec}) {
             $node = $p{doc}->createTextNode("$p{spec}");
-            _attach($node, $p{parent});
+            $ADJ{$adj}->($node, $p{$adj});
         }
     }
 
