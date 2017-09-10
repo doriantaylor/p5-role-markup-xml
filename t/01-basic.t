@@ -13,7 +13,7 @@ package main;
 
 use Test::More;
 
-plan tests => 4;
+plan tests => 5;
 
 
 my $obj = My::Test->new;
@@ -35,7 +35,7 @@ my $html = $obj->_XML(
              { -name => 'html', xmlns => 'http://www.w3.org/1999/xhtml'}],
 );
 
-diag($doc->toString(1));
+#diag($doc->toString(1));
 
 my $title = $obj->_XML(
     parent => $html,
@@ -43,7 +43,7 @@ my $title = $obj->_XML(
               -content => { -name => 'title', -content => 'hi' } },
 );
 
-diag($doc->toString(1));
+#diag($doc->toString(1));
 
 $obj->_XML(
     next => $title->parentNode,
@@ -51,6 +51,6 @@ $obj->_XML(
     spec => { -comment => 'lol' },
 );
 
-diag($doc->toString(1));
+#diag($doc->toString(1));
 
 #diag(&Role::Markup::XML::QNAME_RE);

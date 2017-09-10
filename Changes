@@ -1,5 +1,8 @@
 Revision history for Role-Markup-XML
 
+0.06    Sat,  9 Sep 2017 20:47:11 -0700
+        added replace, prev and next node parameters in addition to parent
+
 0.05    Sat,  9 Sep 2017 14:17:47 -0700
         - added RDF::Trine::NamespaceMap to strippable namespace objects
         - added -dtd key in addition to -doctype
