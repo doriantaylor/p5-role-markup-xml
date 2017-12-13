@@ -641,7 +641,7 @@ sub _XML {
         return $p{$adj};
     }
     elsif ($ref eq 'CODE') {
-        return $self->_XML(spec   => $p{spec}->($self, @{$p{args}}),
+        return $self->_XML(spec   => [$p{spec}->($self, @{$p{args}})],
                            $adj   => $p{$adj},
                            doc    => $p{doc},
                            args   => $p{args});
