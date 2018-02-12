@@ -2,7 +2,7 @@ NAME
     Role::Markup::XML - Moo(se) role for bolt-on lazy XML markup
 
 VERSION
-    Version 0.07
+    Version 0.08
 
 SYNOPSIS
         package My::MarkupEnabled;
@@ -377,6 +377,10 @@ METHODS
 
     args
         Same as "args" in "_XML".
+
+  _LOAD %PARAMS|\%PARAMS
+    This is just a convenience method for "load_xml" in XML::LibXML. All
+    parameters get passed straight through without any modification.
 
 AUTHOR
     Dorian Taylor, "<dorian at cpan.org>"

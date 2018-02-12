@@ -64,11 +64,11 @@ Role::Markup::XML - Moo(se) role for bolt-on lazy XML markup
 
 =head1 VERSION
 
-Version 0.07
+Version 0.08
 
 =cut
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 =head1 SYNOPSIS
 
@@ -1259,6 +1259,19 @@ sub _XHTML {
 
     return wantarray ? ($body, $doc) : $body;
 }
+
+=head2 _LOAD %PARAMS|\%PARAMS
+
+This is just a convenience method for L<XML::LibXML/load_xml>. All
+parameters get passed straight through without any modification.
+
+=cut
+
+sub _LOAD {
+    my $self = shift;
+    XML::LibXML->load_xml(@_);
+}
+
 
 =head1 AUTHOR
 
