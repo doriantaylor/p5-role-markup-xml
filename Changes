@@ -1,4 +1,6 @@
 Revision history for Role-Markup-XML
+0.09    Tue Jul  3 15:20:43 PDT 2018
+        - changed xhtml+rdfa ns/prefix behaviour; added lang/xml:lang
 
 0.08    Sun, 11 Feb 2018 20:37:38 -0800
         - added _LOAD method, a proxy to XML::LibXML->load_xml
